@@ -535,14 +535,14 @@ func main() {
 	}
 
 	// Configure structured logging.
-	var logHandler slog.Handler
+	var handler slog.Handler
 	opts := &slog.HandlerOptions{Level: slog.LevelInfo}
 	if *logFormat == "json" {
-		logHandler = slog.NewJSONHandler(os.Stdout, opts)
+		handler = slog.NewJSONHandler(os.Stdout, opts)
 	} else {
-		logHandler = slog.NewTextHandler(os.Stdout, opts)
+		handler = slog.NewTextHandler(os.Stdout, opts)
 	}
-	slog.SetDefault(slog.New(logHandler))
+	slog.SetDefault(slog.New(handler))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
