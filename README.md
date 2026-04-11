@@ -99,17 +99,33 @@ TLS should be terminated upstream (nginx, Caddy, Cloudflare, etc.).
 
 In `~/.paseo/config.json`:
 
+**With domain:**
 ```json
 {
   "daemon": {
     "relay": {
       "enabled": true,
-      "endpoint": "wss://relay.yourdomain.com/ws",
-      "publicEndpoint": "https://relay.yourdomain.com"
+      "endpoint": "relay.yourdomain.com:443",
+      "publicEndpoint": "relay.yourdomain.com:443"
     }
   }
 }
 ```
+
+**With IP address:**
+```json
+{
+  "daemon": {
+    "relay": {
+      "enabled": true,
+      "endpoint": "1.2.3.4:8080",
+      "publicEndpoint": "1.2.3.4:8080"
+    }
+  }
+}
+```
+
+The daemon automatically appends `/ws` to the endpoint when connecting.
 
 Then restart the daemon: `paseo daemon stop && paseo daemon start`.
 
