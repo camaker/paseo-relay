@@ -20,7 +20,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -321,7 +321,7 @@ func (h *relayHandler) handleWS(w http.ResponseWriter, r *http.Request) {
 
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("websocket upgrade failed: %v", err)
+		slog.Error("websocket upgrade failed", "err", err)
 		return
 	}
 
@@ -345,7 +345,7 @@ func (h *relayHandler) handleWS(w http.ResponseWriter, r *http.Request) {
 
 // handleServerControl manages the daemon's control socket (one per session).
 func (h *relayHandler) handleServerControl(sess *session, c *conn, serverId string) {
-	log.Printf("[relay] server-control connected serverId=%s", serverId)
+	slog.Info("server-control connected", "serverId", serverId)
 
 	sess.mu.Lock()
 	old := sess.control
@@ -366,7 +366,7 @@ func (h *relayHandler) handleServerControl(sess *session, c *conn, serverId stri
 			sess.control = nil
 		}
 		sess.mu.Unlock()
-		log.Printf("[relay] server-control disconnected serverId=%s", serverId)
+		slog.Info("server-control disconnected", "serverId", serverId)
 	}()
 
 	for {
@@ -391,7 +391,7 @@ func (h *relayHandler) handleServerControl(sess *session, c *conn, serverId stri
 
 // handleServerData manages a daemon data socket for a specific connectionId.
 func (h *relayHandler) handleServerData(sess *session, c *conn, serverId, connectionId string) {
-	log.Printf("[relay] server-data connected serverId=%s connectionId=%s", serverId, connectionId)
+	slog.Info("server-data connected", "serverId", serverId, "connectionId", connectionId)
 
 	sess.mu.Lock()
 	old := sess.serverData[connectionId]
@@ -416,7 +416,7 @@ func (h *relayHandler) handleServerData(sess *session, c *conn, serverId, connec
 		for _, cl := range clients {
 			cl.close(1012, "Server disconnected")
 		}
-		log.Printf("[relay] server-data disconnected serverId=%s connectionId=%s", serverId, connectionId)
+		slog.Info("server-data disconnected", "serverId", serverId, "connectionId", connectionId)
 	}()
 
 	for {
@@ -429,7 +429,7 @@ func (h *relayHandler) handleServerData(sess *session, c *conn, serverId, connec
 		sess.mu.RUnlock()
 		for _, cl := range targets {
 			if err := cl.send(msgType, msg); err != nil {
-				log.Printf("[relay] forward server->client failed connectionId=%s err=%v", connectionId, err)
+				slog.Error("forward server->client failed", "connectionId", connectionId, "err", err)
 			}
 		}
 	}
@@ -437,7 +437,7 @@ func (h *relayHandler) handleServerData(sess *session, c *conn, serverId, connec
 
 // handleClient manages an app/client socket (multiple allowed per connectionId).
 func (h *relayHandler) handleClient(sess *session, c *conn, serverId, connectionId string) {
-	log.Printf("[relay] client connected serverId=%s connectionId=%s", serverId, connectionId)
+	slog.Info("client connected", "serverId", serverId, "connectionId", connectionId)
 
 	sess.mu.Lock()
 	sess.clients[connectionId] = append(sess.clients[connectionId], c)
@@ -471,7 +471,7 @@ func (h *relayHandler) handleClient(sess *session, c *conn, serverId, connection
 			}
 			sess.notifyControl(map[string]any{"type": "disconnected", "connectionId": connectionId})
 		}
-		log.Printf("[relay] client disconnected serverId=%s connectionId=%s", serverId, connectionId)
+		slog.Info("client disconnected", "serverId", serverId, "connectionId", connectionId)
 	}()
 
 	for {
@@ -488,7 +488,7 @@ func (h *relayHandler) handleClient(sess *session, c *conn, serverId, connection
 			continue
 		}
 		if err := srv.send(msgType, msg); err != nil {
-			log.Printf("[relay] forward client->server failed connectionId=%s err=%v", connectionId, err)
+			slog.Error("forward client->server failed", "connectionId", connectionId, "err", err)
 		}
 	}
 }
@@ -525,7 +525,7 @@ func envOrDefault(key, def string) string {
 func main() {
 	addr := flag.String("addr", envOrDefault("RELAY_ADDR", ":8080"), "listen address")
 	maxBuf := flag.Int("max-buffer-frames", 200, "max frames buffered per connection while daemon is connecting")
-	_ = flag.String("log-format", envOrDefault("LOG_FORMAT", "text"), "reserved: log format (text or json)")
+	logFormat := flag.String("log-format", envOrDefault("LOG_FORMAT", "text"), "log format: text or json")
 	printVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -533,6 +533,16 @@ func main() {
 		fmt.Println(version)
 		os.Exit(0)
 	}
+
+	// Configure structured logging.
+	var logHandler slog.Handler
+	opts := &slog.HandlerOptions{Level: slog.LevelInfo}
+	if *logFormat == "json" {
+		logHandler = slog.NewJSONHandler(os.Stdout, opts)
+	} else {
+		logHandler = slog.NewTextHandler(os.Stdout, opts)
+	}
+	slog.SetDefault(slog.New(logHandler))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -546,19 +556,20 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("[relay] starting addr=%s version=%s", *addr, version)
+		slog.Info("paseo relay starting", "addr", *addr, "version", version)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("[relay] server error: %v", err)
+			slog.Error("server error", "err", err)
+			os.Exit(1)
 		}
 	}()
 
 	<-ctx.Done()
-	log.Println("[relay] shutting down...")
+	slog.Info("shutting down...")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("[relay] shutdown error: %v", err)
+		slog.Error("shutdown error", "err", err)
 	}
-	log.Println("[relay] stopped")
+	slog.Info("stopped")
 }
