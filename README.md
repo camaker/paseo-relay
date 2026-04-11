@@ -38,9 +38,23 @@ docker run -p 8080:8080 ghcr.io/zenghongtu/paseo-relay:latest
 
 ### Binary
 
-Download a pre-built binary from [Releases](https://github.com/zenghongtu/paseo-relay/releases), then:
+Download and run a pre-built binary from [Releases](https://github.com/zenghongtu/paseo-relay/releases):
 
 ```bash
+# Linux amd64
+curl -L https://github.com/zenghongtu/paseo-relay/releases/latest/download/paseo-relay-v0.2.0-linux-amd64.tar.gz | tar -xz
+./paseo-relay --addr :8080
+
+# Linux arm64
+curl -L https://github.com/zenghongtu/paseo-relay/releases/latest/download/paseo-relay-v0.2.0-linux-arm64.tar.gz | tar -xz
+./paseo-relay --addr :8080
+
+# macOS arm64 (Apple Silicon)
+curl -L https://github.com/zenghongtu/paseo-relay/releases/latest/download/paseo-relay-v0.2.0-darwin-arm64.tar.gz | tar -xz
+./paseo-relay --addr :8080
+
+# macOS amd64 (Intel)
+curl -L https://github.com/zenghongtu/paseo-relay/releases/latest/download/paseo-relay-v0.2.0-darwin-amd64.tar.gz | tar -xz
 ./paseo-relay --addr :8080
 ```
 
