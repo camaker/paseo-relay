@@ -11,5 +11,5 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 FROM scratch
 COPY --from=builder /relay /relay
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-EXPOSE 8080
+EXPOSE 8411
 ENTRYPOINT ["/relay"]

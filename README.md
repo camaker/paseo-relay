@@ -33,29 +33,27 @@ Three WebSocket endpoints under `GET /ws`:
 ### Docker
 
 ```bash
-docker run -p 8080:8080 ghcr.io/zenghongtu/paseo-relay:latest
+docker run -p 8411:8411 ghcr.io/zenghongtu/paseo-relay:latest
 ```
 
-### Binary
+### Binary (pre-built)
 
-Download and run a pre-built binary from [Releases](https://github.com/zenghongtu/paseo-relay/releases):
+Download the binary for your platform from [Releases](https://github.com/zenghongtu/paseo-relay/releases):
+
+| Platform | File |
+|----------|------|
+| Linux x86_64 | `paseo-relay-<version>-linux-amd64.tar.gz` |
+| Linux ARM64 | `paseo-relay-<version>-linux-arm64.tar.gz` |
+| macOS x86_64 | `paseo-relay-<version>-darwin-amd64.tar.gz` |
+| macOS Apple Silicon | `paseo-relay-<version>-darwin-arm64.tar.gz` |
+| Windows x86_64 | `paseo-relay-<version>-windows-amd64.zip` |
 
 ```bash
-# Linux amd64
-curl -L https://github.com/zenghongtu/paseo-relay/releases/latest/download/paseo-relay-v0.2.0-linux-amd64.tar.gz | tar -xz
-./paseo-relay --addr :8080
+# Linux/macOS
+curl -L https://github.com/zenghongtu/paseo-relay/releases/latest/download/paseo-relay-v0.3.0-linux-amd64.tar.gz | tar xz
+./paseo-relay
 
-# Linux arm64
-curl -L https://github.com/zenghongtu/paseo-relay/releases/latest/download/paseo-relay-v0.2.0-linux-arm64.tar.gz | tar -xz
-./paseo-relay --addr :8080
-
-# macOS arm64 (Apple Silicon)
-curl -L https://github.com/zenghongtu/paseo-relay/releases/latest/download/paseo-relay-v0.2.0-darwin-arm64.tar.gz | tar -xz
-./paseo-relay --addr :8080
-
-# macOS amd64 (Intel)
-curl -L https://github.com/zenghongtu/paseo-relay/releases/latest/download/paseo-relay-v0.2.0-darwin-amd64.tar.gz | tar -xz
-./paseo-relay --addr :8080
+# Windows: extract the .zip and run paseo-relay.exe
 ```
 
 ### Build from source
@@ -71,7 +69,7 @@ go build -o paseo-relay .
 
 | Flag | Env var | Default | Description |
 |------|---------|---------|-------------|
-| `--addr` | `RELAY_ADDR` | `:8080` | Listen address |
+| `--addr` | `RELAY_ADDR` | `:8411` | Listen address |
 | `--max-buffer-frames` | — | `200` | Max frames buffered per connection while daemon is connecting |
 | `--log-format` | `LOG_FORMAT` | `text` | Log format: `text` or `json` |
 | `--version` | — | — | Print version and exit |
@@ -86,7 +84,7 @@ Description=Paseo relay
 After=network.target
 
 [Service]
-ExecStart=/usr/local/bin/paseo-relay --addr :8080 --log-format json
+ExecStart=/usr/local/bin/paseo-relay --addr :8411 --log-format json
 Restart=always
 RestartSec=5
 
@@ -102,7 +100,7 @@ services:
     image: ghcr.io/zenghongtu/paseo-relay:latest
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8411:8411"
     environment:
       LOG_FORMAT: json
 ```
@@ -132,14 +130,12 @@ In `~/.paseo/config.json`:
   "daemon": {
     "relay": {
       "enabled": true,
-      "endpoint": "1.2.3.4:8080",
-      "publicEndpoint": "1.2.3.4:8080"
+      "endpoint": "1.2.3.4:8411",
+      "publicEndpoint": "1.2.3.4:8411"
     }
   }
 }
 ```
-
-The daemon automatically appends `/ws` to the endpoint when connecting.
 
 Then restart the daemon: `paseo daemon stop && paseo daemon start`.
 

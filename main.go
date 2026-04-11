@@ -523,7 +523,7 @@ func envOrDefault(key, def string) string {
 // ---- Main ----
 
 func main() {
-	addr := flag.String("addr", envOrDefault("RELAY_ADDR", ":8080"), "listen address")
+	addr := flag.String("addr", envOrDefault("RELAY_ADDR", ":8411"), "listen address")
 	maxBuf := flag.Int("max-buffer-frames", 200, "max frames buffered per connection while daemon is connecting")
 	logFormat := flag.String("log-format", envOrDefault("LOG_FORMAT", "text"), "log format: text or json")
 	printVersion := flag.Bool("version", false, "print version and exit")
