@@ -36,6 +36,9 @@ var version = "dev"
 
 // ---- WebSocket upgrader ----
 
+// maxMessageBytes is the maximum size of a single WebSocket message.
+const maxMessageBytes = 10 * 1024 * 1024 // 10 MB
+
 var upgrader = websocket.Upgrader{
 	HandshakeTimeout: 10 * time.Second,
 	CheckOrigin:      func(r *http.Request) bool { return true },
@@ -228,6 +231,9 @@ func (s *session) nudgeOrResetControl(connectionId string) {
 
 // ---- Session registry ----
 
+// maxSessions is the maximum number of concurrent sessions allowed.
+const maxSessions = 10_000
+
 type registry struct {
 	mu              sync.Mutex
 	sessions        map[string]*session
@@ -241,15 +247,20 @@ func newRegistry(maxBufferFrames int) *registry {
 	}
 }
 
-func (r *registry) get(serverId string) *session {
+// get returns the session for serverId, creating it if needed.
+// Returns (session, true) on success, or (nil, false) if the session limit is reached.
+func (r *registry) get(serverId string) (*session, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	s, ok := r.sessions[serverId]
 	if !ok {
+		if len(r.sessions) >= maxSessions {
+			return nil, false
+		}
 		s = newSession(r.maxBufferFrames)
 		r.sessions[serverId] = s
 	}
-	return s
+	return s, true
 }
 
 // evict removes sessions that have no active connections.
@@ -324,8 +335,16 @@ func (h *relayHandler) handleWS(w http.ResponseWriter, r *http.Request) {
 		slog.Error("websocket upgrade failed", "err", err)
 		return
 	}
+	ws.SetReadLimit(maxMessageBytes)
 
-	sess := h.reg.get(serverId)
+	sess, ok := h.reg.get(serverId)
+	if !ok {
+		ws.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(1008, "Too many sessions"))
+		ws.Close()
+		slog.Warn("session limit reached, rejected connection", "serverId", serverId)
+		return
+	}
 	c := newConn(ws)
 
 	switch role {
