@@ -2,6 +2,23 @@
 
 All notable changes to paseo-relay are documented here.
 
+## [v0.5.0] - 2026-04-11
+
+### Performance
+- Reduce lock contention on forwarding hot-path: extract per-connectionId state into `pipe` struct with its own mutex; message forwarding no longer touches the session-level lock
+- `connectedConnectionIds` now iterates pipes under a single lock instead of double-locking
+
+### Fixed
+- Fix race condition in `nudgeOrResetControl`: inner timer now re-acquires lock and compares control pointer before closing, preventing accidental close of a replaced connection
+
+### Changed
+- Session cleanup is now active (on handler exit) instead of relying solely on the 60s eviction ticker; eviction loop kept as a 5-minute backstop
+- `frameBuffer` now enforces a 32 MB total byte limit in addition to the frame count limit, evicting oldest frames when the limit is reached
+- Scope GitHub Actions release workflow permissions per job (least privilege)
+
+### Security
+- Remove weak time-based fallback in `randomHex`; `crypto/rand` failure now panics instead of silently degrading to predictable IDs
+
 ## [v0.4.0] - 2026-04-11
 
 ### Security
