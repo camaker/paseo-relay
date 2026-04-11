@@ -1,0 +1,125 @@
+# paseo-relay
+
+Zero-knowledge WebSocket relay server for [Paseo](https://github.com/getpaseo/paseo).
+
+The relay bridges your Paseo daemon and the mobile app when they can't connect directly. It forwards encrypted bytes without being able to read them — the relay is completely untrusted by design.
+
+## How it works
+
+```
+Mobile App  ──────────────────────────────────────┐
+                                                   ▼
+                                           [ paseo-relay ]
+                                                   ▲
+Paseo Daemon ─────────────────────────────────────┘
+```
+
+All traffic between daemon and app is E2E encrypted with XSalsa20-Poly1305 (NaCl box). The relay sees only IP addresses, timing, message sizes, and session IDs — never the content.
+
+## Protocol (v2)
+
+Three WebSocket endpoints under `GET /ws`:
+
+| Role | Query params | Description |
+|------|-------------|-------------|
+| Daemon control | `role=server&v=2` | One per daemon session, receives connect/disconnect events |
+| Daemon data | `role=server&connectionId=<c>&v=2` | One per client connection, forwards encrypted frames |
+| Client | `role=client[&connectionId=<c>]&v=2` | App socket, multiple allowed per connectionId |
+
+`GET /health` returns `{"status":"ok","version":"<version>"}`.
+
+## Quick start
+
+### Docker
+
+```bash
+docker run -p 8080:8080 ghcr.io/zenghongtu/paseo-relay:latest
+```
+
+### Binary
+
+Download a pre-built binary from [Releases](https://github.com/zenghongtu/paseo-relay/releases), then:
+
+```bash
+./paseo-relay --addr :8080
+```
+
+### Build from source
+
+```bash
+git clone https://github.com/zenghongtu/paseo-relay
+cd paseo-relay
+go build -o paseo-relay .
+./paseo-relay
+```
+
+## Configuration
+
+| Flag | Env var | Default | Description |
+|------|---------|---------|-------------|
+| `--addr` | `RELAY_ADDR` | `:8080` | Listen address |
+| `--max-buffer-frames` | — | `200` | Max frames buffered per connection while daemon is connecting |
+| `--log-format` | `LOG_FORMAT` | `text` | Log format: `text` or `json` |
+| `--version` | — | — | Print version and exit |
+
+## Deployment
+
+### systemd
+
+```ini
+[Unit]
+Description=Paseo relay
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/paseo-relay --addr :8080 --log-format json
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Docker Compose
+
+```yaml
+services:
+  relay:
+    image: ghcr.io/zenghongtu/paseo-relay:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      LOG_FORMAT: json
+```
+
+TLS should be terminated upstream (nginx, Caddy, Cloudflare, etc.).
+
+### Configure Paseo daemon
+
+In `~/.paseo/config.json`:
+
+```json
+{
+  "daemon": {
+    "relay": {
+      "enabled": true,
+      "endpoint": "wss://relay.yourdomain.com/ws",
+      "publicEndpoint": "https://relay.yourdomain.com"
+    }
+  }
+}
+```
+
+Then restart the daemon: `paseo daemon stop && paseo daemon start`.
+
+## Security
+
+- The relay is zero-knowledge — it cannot read or forge messages.
+- No authentication on the relay itself; security is enforced end-to-end by Paseo's ECDH + NaCl box encryption.
+- Always terminate TLS upstream; do not expose the relay over plain HTTP.
+- See [Paseo SECURITY.md](https://github.com/getpaseo/paseo/blob/main/SECURITY.md) for the full threat model.
+
+## License
+
+AGPLv3 — see [LICENSE](LICENSE).

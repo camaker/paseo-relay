@@ -1,0 +1,8 @@
+.git
+*.md
+Dockerfile*
+.github
+*.tar.gz
+*.zip
+paseo-relay
+paseo-relay.exe
