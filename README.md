@@ -1,6 +1,8 @@
 # paseo-relay
 
-Zero-knowledge WebSocket relay server for [Paseo](https://github.com/getpaseo/paseo).
+[中文](README.zh.md) | English
+
+A lightweight self-hosted relay server for [Paseo](https://github.com/getpaseo/paseo).
 
 The relay bridges your Paseo daemon and the mobile app when they can't connect directly. It forwards encrypted bytes without being able to read them — the relay is completely untrusted by design.
 
